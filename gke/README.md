@@ -9,6 +9,11 @@ Example of Pulumi converted sdk from CASTAI Terraform provider
 ## Trying it out
 
 Clone the repo
+```bash
+git clone https://github.com/castai/pulumi-sdk-castai.git
+
+cd pulumi-sdk-castai/gke
+```
 
 Create a local pulumi stack
 ```bash
