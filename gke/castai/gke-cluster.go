@@ -272,6 +272,43 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 		return nil, err
 	}
 
+	// Sample spot node template
+	_, err = castai.NewNodeTemplate(ctx, fmt.Sprintf("%s:castai:cluster:nodetemplate:spot", name), &castai.NodeTemplateArgs{
+		ConfigurationId:                          newNodeConfigurationRes.ID(),
+		IsEnabled:                                pulumi.Bool(true),
+		ShouldTaint:                              pulumi.Bool(true),
+		CustomInstancesEnabled:                   pulumi.Bool(true),
+		CustomInstancesWithExtendedMemoryEnabled: pulumi.Bool(true),
+		CustomLabels: pulumi.StringMap{
+			"scheduling.cast.ai/node-template": pulumi.String("spot"),
+		},
+		CustomTaints: &castai.NodeTemplateCustomTaintArray{
+			&castai.NodeTemplateCustomTaintArgs{
+				Key:    pulumi.String("scheduling.cast.ai/node-template"),
+				Value:  pulumi.String("spot"),
+				Effect: pulumi.String("NoSchedule"),
+			},
+			&castai.NodeTemplateCustomTaintArgs{
+				Key:    pulumi.String("lifecycle"),
+				Value:  pulumi.String("spot"),
+				Effect: pulumi.String("NoSchedule"),
+			},
+		},
+		Constraints: &castai.NodeTemplateConstraintsArgs{
+			OnDemand:            pulumi.Bool(false),
+			Spot:                pulumi.Bool(true),
+			UseSpotFallbacks:    pulumi.Bool(false),
+			EnableSpotDiversity: pulumi.Bool(false),
+		},
+		ClusterId: castaiCluster.GkeClusterId,
+		Name:      pulumi.String("spot"),
+	}, pulumi.Parent(&componentResource), pulumi.DependsOn([]pulumi.Resource{
+		newNodeConfigurationRes,
+	}))
+	if err != nil {
+		return nil, err
+	}
+
 	// Autoscaler Settings
 	_, err = castai.NewAutoscaler(ctx, fmt.Sprintf("%s:castai:cluster:autoscaler_policies", name), &castai.AutoscalerArgs{
 		AutoscalerSettings: &castai.AutoscalerAutoscalerSettingsArgs{

@@ -13,11 +13,11 @@ func main() {
 		// Set configs
 		apiToken := config.Get(ctx, "castai:apiToken")
 
-		projectId := "success-team-dev"
-		clusterName := "gke-022101-acr"
-		gcpLocation := "asia-southeast1-a"
+		projectId := "<PROJECT_ID>"
+		clusterName := "<CLUSTER_NAME>"
+		gcpLocation := "GKE_LOCATION"
 		subnets := []string{
-			"projects/success-team-dev/regions/asia-southeast1/subnetworks/default",
+			"SUBNET_ID",
 		}
 		enableAutoScaler := true
 		enableUnschedulablePods := true
