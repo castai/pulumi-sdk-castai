@@ -256,14 +256,19 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 		CustomLabels: pulumi.StringMap{
 			"template": pulumi.String("example_nodetemplate"),
 		},
-		Constraints:                              &castai.NodeTemplateConstraintsArgs{},
+		Constraints: &castai.NodeTemplateConstraintsArgs{
+			OnDemand:            pulumi.Bool(false),
+			Spot:                pulumi.Bool(true),
+			UseSpotFallbacks:    pulumi.Bool(false),
+			EnableSpotDiversity: pulumi.Bool(false),
+		},
 		ClusterId:                                castaiCluster.GkeClusterId,
 		Name:                                     pulumi.String("example_nodetemplate"),
 		ConfigurationId:                          newNodeConfigurationRes.ID(),
 		IsDefault:                                pulumi.Bool(false),
 		IsEnabled:                                pulumi.Bool(true),
 		ShouldTaint:                              pulumi.Bool(false),
-		CustomInstancesEnabled:                   pulumi.Bool(false),
+		CustomInstancesEnabled:                   pulumi.Bool(true),
 		CustomInstancesWithExtendedMemoryEnabled: pulumi.Bool(true),
 	}, pulumi.Parent(&componentResource), pulumi.DependsOn([]pulumi.Resource{
 		newNodeConfigurationRes,
