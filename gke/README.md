@@ -22,7 +22,7 @@ Set the CASTAI API TOKEN
 pulumi config set castai:apiToken <CAST_API_TOKEN> --secret
 ```
 
-Populate the subnet, projectid, clustername and the serviceaccountuniqueid (Default compute engine service account unique id), in the main.go then save.
+Populate the subnet, projectid, clustername, etc., in the main.go then save.
 
 ```go
 		projectId := "<YOUR_PROJECT>"
