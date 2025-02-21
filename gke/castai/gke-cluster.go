@@ -228,7 +228,7 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 	var networkTags pulumi.StringArray
 
 	nodeConfig := &castai.NodeConfigurationGkeArgs{
-		MaxPodsPerNode:              pulumi.Float64(100),
+		MaxPodsPerNode:              pulumi.Float64(30),
 		NetworkTags:                 networkTags,
 		DiskType:                    pulumi.String("pd-standard"),
 		UseEphemeralStorageLocalSsd: pulumi.Bool(false),
@@ -239,7 +239,7 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 		ClusterId:       castaiCluster.GkeClusterId,
 		Name:            pulumi.String("default"),
 		DiskCpuRatio:    pulumi.Float64(0),
-		DrainTimeoutSec: pulumi.Float64(100),
+		DrainTimeoutSec: pulumi.Float64(1200),
 		MinDiskSize:     pulumi.Float64(100),
 		Subnets:         pulumi.ToStringArray(args.Subnets),
 		Tags: pulumi.StringMap{
@@ -264,7 +264,7 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 		IsEnabled:                                pulumi.Bool(true),
 		ShouldTaint:                              pulumi.Bool(false),
 		CustomInstancesEnabled:                   pulumi.Bool(false),
-		CustomInstancesWithExtendedMemoryEnabled: pulumi.Bool(false),
+		CustomInstancesWithExtendedMemoryEnabled: pulumi.Bool(true),
 	}, pulumi.Parent(&componentResource), pulumi.DependsOn([]pulumi.Resource{
 		newNodeConfigurationRes,
 	}))
