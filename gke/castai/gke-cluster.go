@@ -1,6 +1,7 @@
 package castai
 
 import (
+	"encoding/json"
 	"fmt"
 
 	corev1 "github.com/pulumi/pulumi-kubernetes/sdk/v4/go/kubernetes/core/v1"
@@ -251,10 +252,10 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 	}
 
 	// Node template
-	nodeTemplate, err := castai.NewNodeTemplate(ctx, fmt.Sprintf("%s:castai:cluster:nodetemplate", name), &castai.NodeTemplateArgs{
+	nodeTemplate, err := castai.NewNodeTemplate(ctx, fmt.Sprintf("%s:castai:cluster:default-by-castai", name), &castai.NodeTemplateArgs{
 		CustomTaints: &castai.NodeTemplateCustomTaintArray{},
 		CustomLabels: pulumi.StringMap{
-			"template": pulumi.String("example_nodetemplate"),
+			"template": pulumi.String("default-by-castai"),
 		},
 		Constraints: &castai.NodeTemplateConstraintsArgs{
 			OnDemand:            pulumi.Bool(false),
@@ -263,9 +264,9 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 			EnableSpotDiversity: pulumi.Bool(false),
 		},
 		ClusterId:                                castaiCluster.GkeClusterId,
-		Name:                                     pulumi.String("example_nodetemplate"),
+		Name:                                     pulumi.String("default-by-castai"),
 		ConfigurationId:                          newNodeConfigurationRes.ID(),
-		IsDefault:                                pulumi.Bool(false),
+		IsDefault:                                pulumi.Bool(true),
 		IsEnabled:                                pulumi.Bool(true),
 		ShouldTaint:                              pulumi.Bool(false),
 		CustomInstancesEnabled:                   pulumi.Bool(true),
@@ -346,8 +347,76 @@ func NewGkeCluster(ctx *pulumi.Context, name string, args *GkeClusterArgs, opts 
 	if err != nil {
 		return nil, err
 	}
+
+	err = CreateRebalancingConfig(ctx, name, castaiCluster.GkeClusterId, &componentResource)
+	if err != nil {
+		return nil, err
+	}
+
 	componentResource.ClusterId = pulumi.AnyOutput(castaiCluster.GkeClusterId)
 	componentResource.CastaiNodeConfigurations = pulumi.AnyOutput(newNodeConfigurationRes.NodeConfigurationId)
 	componentResource.CastaiNodeTemplates = pulumi.AnyOutput(nodeTemplate.NodeTemplateId)
 	return &componentResource, nil
+}
+
+func CreateRebalancingConfig(ctx *pulumi.Context, name string, clusterId pulumi.StringOutput, parent pulumi.Resource) error {
+	// Build the node selector JSON for spot instances
+	selector := map[string]interface{}{
+		"nodeSelectorTerms": []interface{}{
+			map[string]interface{}{
+				"matchExpressions": []interface{}{
+					map[string]interface{}{
+						"key":      "scheduling.cast.ai/spot",
+						"operator": "Exists",
+					},
+				},
+			},
+		},
+	}
+	selectorJSON, err := json.Marshal(selector)
+	if err != nil {
+		return fmt.Errorf("error marshalling selector: %w", err)
+	}
+
+	// Create the CAST AI Rebalancing Schedule
+	rebalSchedule, err := castai.NewRebalancingSchedule(ctx, fmt.Sprintf("%s:castai:rebalance:schedule", name), &castai.RebalancingScheduleArgs{
+		LaunchConfiguration: castai.RebalancingScheduleLaunchConfigurationArgs{
+			NodeTtlSeconds:        pulumi.Float64Ptr(300),
+			NumTargetedNodes:      pulumi.Float64Ptr(3),
+			RebalancingMinNodes:   pulumi.Float64Ptr(2),
+			KeepDrainTimeoutNodes: pulumi.Bool(false),
+			Selector:              pulumi.String(string(selectorJSON)),
+			ExecutionConditions: &castai.RebalancingScheduleLaunchConfigurationExecutionConditionsArgs{
+				Enabled:                   pulumi.Bool(true),
+				AchievedSavingsPercentage: pulumi.Float64Ptr(10),
+			},
+		},
+		Schedule: castai.RebalancingScheduleScheduleArgs{
+			Cron: pulumi.String("*/30 * * * *"), // Runs every 30 minutes
+		},
+		TriggerConditions: castai.RebalancingScheduleTriggerConditionsArgs{
+			SavingsPercentage: pulumi.Float64(20),
+		},
+		Name: pulumi.StringPtr("rebalance spots at every 30th minute"),
+	}, pulumi.Parent(parent))
+	if err != nil {
+		return err
+	}
+
+	// Create the CAST AI Rebalancing Job
+	_, err = castai.NewRebalancingJob(ctx, fmt.Sprintf("%s:castai:rebalance:job", name), &castai.RebalancingJobArgs{
+		ClusterId:             clusterId,
+		RebalancingScheduleId: rebalSchedule.RebalancingScheduleId,
+		Enabled:               pulumi.BoolPtr(true),
+	}, pulumi.Parent(parent), pulumi.DependsOn([]pulumi.Resource{
+		rebalSchedule,
+	}))
+	if err != nil {
+		return err
+	}
+
+	// Export IDs for tracking
+	ctx.Export("rebalancingScheduleId", rebalSchedule.RebalancingScheduleId)
+
+	return nil
 }
