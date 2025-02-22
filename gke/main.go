@@ -13,11 +13,11 @@ func main() {
 		// Set configs
 		apiToken := config.Get(ctx, "castai:apiToken")
 
-		projectId := "support-engineers"
-		clusterName := "gke-poc-av"
-		gcpLocation := "us-central1"
+		projectId := "<YOUR_PROJECT>"
+		clusterName := "<EXISTING_GKE_CLUSTER_NAME"
+		gcpLocation := "<GKE_LOCATION>"
 		subnets := []string{
-			"projects/support-engineers/regions/us-central1/subnetworks/gke-poc-av-ip-range-nodes",
+			"<SUBNET>",
 		}
 		enableAutoScaler := true
 		enableUnschedulablePods := true
